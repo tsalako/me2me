@@ -1,0 +1,25 @@
+<%- include('partials/head', { title: `${appName} · home` }) %>
+<%- include('partials/header', { appName, currentUser }) %>
+<main class="page-shell home-shell">
+  <section class="card home-card">
+    <div class="section-header">
+      <h1>your topics</h1>
+      <button class="button primary" id="new-topic-btn" type="button">new</button>
+    </div>
+    <% if (!topics.length) { %>
+      <p class="empty-state">No topics yet. Create one to start a live thread or write minutes.</p>
+    <% } else { %>
+      <div class="topic-list">
+        <% topics.forEach((topic) => { %>
+          <a class="topic-list-item" href="<%= topicPath(topic, 'live') %>">
+            <span class="topic-title"><%= topic.title %></span>
+            <span class="topic-chevron">→</span>
+          </a>
+        <% }) %>
+      </div>
+    <% } %>
+  </section>
+</main>
+<script src="/js/home.js"></script>
+</body>
+</html>

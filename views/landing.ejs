@@ -1,0 +1,19 @@
+<%- include('partials/head', { title: `${appName} · sign in` }) %>
+<main class="landing-page">
+  <section class="card landing-card">
+    <h1><%= appName %></h1>
+    <p class="subtitle">Live thread and write minutes for your own topics. Share a link when you want others to see the public parts.</p>
+    <% if (typeof message !== 'undefined' && message) { %>
+      <p class="message"><%= message %></p>
+    <% } %>
+    <div id="g_id_onload"
+      data-client_id="<%= googleClientId %>"
+      data-context="signin"
+      data-ux_mode="popup"
+      data-callback="handleGoogleCredentialResponse"></div>
+    <div class="g_id_signin" data-type="standard" data-theme="outline" data-shape="pill" data-text="signin_with" data-size="large"></div>
+  </section>
+</main>
+<script src="/js/auth.js"></script>
+</body>
+</html>

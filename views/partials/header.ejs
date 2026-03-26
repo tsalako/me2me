@@ -1,0 +1,13 @@
+<header class="app-header">
+  <div class="brand-row">
+    <a href="/" class="brand"><%= appName %></a>
+    <% if (currentUser) { %>
+      <div class="profile-row">
+        <span class="profile-name"><%= currentUser.name || currentUser.email %></span>
+        <form method="post" action="/logout">
+          <button class="button secondary small" type="submit">sign out</button>
+        </form>
+      </div>
+    <% } %>
+  </div>
+</header>
