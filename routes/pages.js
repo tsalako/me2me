@@ -3,8 +3,16 @@ import { prisma } from "../utils/prisma.js";
 import { parseTopicId, topicPath } from "../utils/topicUrl.js";
 import { formatDateTime, formatDayHeading } from "../utils/time.js";
 import { slugify } from "../utils/slugify.js";
+import { decryptContent } from "../utils/crypto.js";
 
 const router = express.Router();
+
+function attachDecryptedContent(entries) {
+  return entries.map((entry) => ({
+    ...entry,
+    content: decryptContent(entry),
+  }));
+}
 
 function groupMinuteEntries(entries) {
   const map = new Map();
@@ -79,10 +87,12 @@ router.get("/t/:idAndSlug", async (req, res, next) => {
       ...(isOwner ? {} : { visibility: "public" }),
     };
 
-    const entries = await prisma.entry.findMany({
+    const dbEntries = await prisma.entry.findMany({
       where,
       orderBy: mode === "live" ? [{ createdAt: "asc" }] : [{ entryDate: "asc" }, { createdAt: "asc" }],
     });
+
+    const entries = attachDecryptedContent(dbEntries);
 
     const canonicalSlug = slugify(topic.title);
     if (topic.slug !== canonicalSlug) {

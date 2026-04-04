@@ -1,6 +1,7 @@
 import express from "express";
 import { prisma } from "../utils/prisma.js";
 import { formatDateTime } from "../utils/time.js";
+import { encryptContent, decryptContent } from "../utils/crypto.js";
 
 const router = express.Router();
 
@@ -21,20 +22,25 @@ router.post("/api/topics/:topicId/entries", async (req, res, next) => {
     const content = String(req.body.content || "").trim();
     const mode = req.body.mode === "minutes" ? "minutes" : "live";
     const visibility = req.body.visibility === "private" ? "private" : "public";
-    const entryDate = mode === "minutes" && req.body.entryDate ? new Date(`${req.body.entryDate}T12:00:00.000Z`) : null;
+    const entryDate =
+      mode === "minutes" && req.body.entryDate
+        ? new Date(`${req.body.entryDate}T12:00:00.000Z`)
+        : null;
 
     if (!content) {
       return res.status(400).json({ error: "Post content is required." });
     }
 
+    const encrypted = encryptContent(content);
+
     const entry = await prisma.entry.create({
       data: {
         topicId: topic.id,
         createdById: req.currentUser.id,
-        content,
         mode,
         visibility,
         entryDate,
+        ...encrypted,
       },
     });
 
@@ -47,6 +53,7 @@ router.post("/api/topics/:topicId/entries", async (req, res, next) => {
       ok: true,
       entry: {
         ...entry,
+        content: decryptContent(entry),
         createdAtLabel: formatDateTime(entry.createdAt),
       },
     });

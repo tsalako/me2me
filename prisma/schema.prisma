@@ -46,18 +46,23 @@ model Topic {
 }
 
 model Entry {
-  id          String      @id @default(uuid())
-  topicId      String
-  createdById  String
-  mode         EntryMode
-  visibility   Visibility  @default(public)
-  content      String      @db.Text
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  entryDate    DateTime?
+  id                String      @id @default(uuid())
+  topicId           String
+  createdById       String
+  mode              EntryMode
+  visibility        Visibility  @default(public)
 
-  topic        Topic       @relation(fields: [topicId], references: [id], onDelete: Cascade)
-  createdBy    User        @relation("EntryAuthor", fields: [createdById], references: [id], onDelete: Cascade)
+  contentCiphertext String      @db.Text
+  contentIv         String
+  contentAuthTag    String
+  contentVersion    Int         @default(1)
+
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  entryDate         DateTime?
+
+  topic             Topic       @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  createdBy         User        @relation("EntryAuthor", fields: [createdById], references: [id], onDelete: Cascade)
 
   @@index([topicId, mode, createdAt])
   @@index([topicId, mode, entryDate])
