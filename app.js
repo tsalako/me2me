@@ -22,8 +22,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const pgPool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: isProd ? { rejectUnauthorized: false } : false,
+  connectionString: process.env.SESSION_DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
 });
 
 const PgStore = connectPgSimple(session);
