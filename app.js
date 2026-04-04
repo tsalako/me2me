@@ -30,6 +30,7 @@ const PgStore = connectPgSimple(session);
 
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
+app.set("trust proxy", 1);
 
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.urlencoded({ extended: true }));
