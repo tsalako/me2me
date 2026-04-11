@@ -4,20 +4,32 @@ import { parseTopicId, topicPath } from "../utils/topicUrl.js";
 import { formatDateTime, formatDayHeading } from "../utils/time.js";
 import { slugify } from "../utils/slugify.js";
 import { decryptContent } from "../utils/crypto.js";
+import { renderMarkdown } from "../utils/markdown.js";
 
 const router = express.Router();
 
-function attachDecryptedContent(entries) {
-  return entries.map((entry) => ({
+function decorateEntry(entry, mode) {
+  const content = decryptContent(entry);
+  const isEdited =
+    entry.updatedAt &&
+    entry.createdAt &&
+    new Date(entry.updatedAt).getTime() - new Date(entry.createdAt).getTime() > 1000;
+
+  return {
     ...entry,
-    content: decryptContent(entry),
-  }));
+    content,
+    renderedContent: renderMarkdown(content),
+    createdAtLabel: mode === "live" ? formatDateTime(entry.createdAt) : null,
+    isEdited,
+  };
 }
 
 function groupMinuteEntries(entries) {
   const map = new Map();
+
   for (const entry of entries) {
     const key = entry.entryDate ? new Date(entry.entryDate).toISOString() : "undated";
+
     if (!map.has(key)) {
       map.set(key, {
         key,
@@ -25,11 +37,10 @@ function groupMinuteEntries(entries) {
         entries: [],
       });
     }
-    map.get(key).entries.push({
-      ...entry,
-      createdAtLabel: formatDateTime(entry.createdAt),
-    });
+
+    map.get(key).entries.push(decorateEntry(entry, "minutes"));
   }
+
   return Array.from(map.values()).sort((a, b) => a.key.localeCompare(b.key));
 }
 
@@ -73,6 +84,7 @@ router.get("/t/:idAndSlug", async (req, res, next) => {
     }
 
     const mode = req.query.mode === "minutes" ? "minutes" : "live";
+
     const topic = await prisma.topic.findUnique({
       where: { id: topicId },
       include: { owner: true },
@@ -81,6 +93,7 @@ router.get("/t/:idAndSlug", async (req, res, next) => {
     if (!topic) return res.status(404).send("Topic not found.");
 
     const isOwner = topic.ownerId === req.currentUser.id;
+
     const where = {
       topicId: topic.id,
       mode,
@@ -89,14 +102,18 @@ router.get("/t/:idAndSlug", async (req, res, next) => {
 
     const dbEntries = await prisma.entry.findMany({
       where,
-      orderBy: mode === "live" ? [{ createdAt: "asc" }] : [{ entryDate: "asc" }, { createdAt: "asc" }],
+      orderBy:
+        mode === "live"
+          ? [{ createdAt: "asc" }]
+          : [{ entryDate: "asc" }, { createdAt: "asc" }],
     });
-
-    const entries = attachDecryptedContent(dbEntries);
 
     const canonicalSlug = slugify(topic.title);
     if (topic.slug !== canonicalSlug) {
-      await prisma.topic.update({ where: { id: topic.id }, data: { slug: canonicalSlug } });
+      await prisma.topic.update({
+        where: { id: topic.id },
+        data: { slug: canonicalSlug },
+      });
       topic.slug = canonicalSlug;
     }
 
@@ -112,6 +129,12 @@ router.get("/t/:idAndSlug", async (req, res, next) => {
         })
       : [];
 
+    const liveEntries =
+      mode === "live" ? dbEntries.map((entry) => decorateEntry(entry, "live")) : [];
+
+    const minuteGroups =
+      mode === "minutes" ? groupMinuteEntries(dbEntries) : [];
+
     res.render("topic", {
       appName: "me2me",
       googleClientId: process.env.GOOGLE_CLIENT_ID,
@@ -119,10 +142,12 @@ router.get("/t/:idAndSlug", async (req, res, next) => {
       mode,
       isOwner,
       ownerTopics,
-      liveEntries: mode === "live" ? entries.map((e) => ({ ...e, createdAtLabel: formatDateTime(e.createdAt) })) : [],
-      minuteGroups: mode === "minutes" ? groupMinuteEntries(entries) : [],
+      liveEntries,
+      minuteGroups,
       topicPath,
-      todayDateInput: new Intl.DateTimeFormat("en-CA", { timeZone: process.env.APP_TIMEZONE || "America/Los_Angeles" }).format(new Date()),
+      todayDateInput: new Intl.DateTimeFormat("en-CA", {
+        timeZone: process.env.APP_TIMEZONE || "America/Los_Angeles",
+      }).format(new Date()),
     });
   } catch (err) {
     next(err);

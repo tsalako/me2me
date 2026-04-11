@@ -1,13 +1,22 @@
 <%- include('partials/head', { title: `${appName} · ${topic.title}` }) %>
 <%- include('partials/header', { appName, currentUser }) %>
-<main class="page-shell topic-shell" data-topic-page data-topic-id="<%= topic.id %>" data-mode="<%= mode %>" data-is-owner="<%= isOwner ? 'true' : 'false' %>">
+
+<main
+  class="page-shell topic-shell"
+  data-topic-page
+  data-topic-id="<%= topic.id %>"
+  data-mode="<%= mode %>"
+  data-is-owner="<%= isOwner ? 'true' : 'false' %>"
+>
   <section class="topic-topbar card">
     <div class="topic-topbar-row">
       <% if (isOwner) { %>
         <div class="topic-selector-row">
           <select id="topic-select" class="input select-input">
             <% ownerTopics.forEach((t) => { %>
-              <option value="<%= topicPath(t, mode) %>" <%= t.id === topic.id ? 'selected' : '' %>><%= t.title %></option>
+              <option value="<%= topicPath(t, mode) %>" <%= t.id === topic.id ? 'selected' : '' %>>
+                <%= t.title %>
+              </option>
             <% }) %>
           </select>
           <button class="button secondary" id="new-topic-inline-btn" type="button">new</button>
@@ -18,8 +27,10 @@
           <p class="subtle-text">Shared view · public posts only</p>
         </div>
       <% } %>
+
       <%- include('partials/modeSlider', { mode, topic, topicPath }) %>
     </div>
+
     <% if (isOwner) { %>
       <h1 class="topic-title-heading owner-title"><%= topic.title %></h1>
     <% } %>
@@ -30,18 +41,20 @@
       <% if (!liveEntries.length) { %>
         <p class="empty-state">No posts yet.</p>
       <% } %>
+
       <% liveEntries.forEach((entry) => { %>
-        <%- include('partials/entryCard', { entry }) %>
+        <%- include('partials/entryCard', { entry, mode, isOwner }) %>
       <% }) %>
     <% } else { %>
       <% if (!minuteGroups.length) { %>
         <p class="empty-state">No minutes yet.</p>
       <% } %>
+
       <% minuteGroups.forEach((group) => { %>
         <section class="minute-group">
           <h2 class="minute-group-heading"><%= group.label %></h2>
           <% group.entries.forEach((entry) => { %>
-            <%- include('partials/entryCard', { entry }) %>
+            <%- include('partials/entryCard', { entry, mode, isOwner }) %>
           <% }) %>
         </section>
       <% }) %>
@@ -49,28 +62,65 @@
   </section>
 
   <% if (isOwner) { %>
-    <section class="composer card">
+    <section class="composer card" id="composer">
       <form id="entry-form" class="composer-form">
-        <textarea id="entry-content" name="content" class="input textarea" rows="3" placeholder="<%= mode === 'live' ? 'Add to the live thread…' : 'Write the minutes…' %>" required></textarea>
+        <div class="composer-editing-row hidden" id="editing-row">
+          <span class="editing-pill">editing entry</span>
+          <button type="button" class="button ghost small" id="cancel-edit-btn">cancel</button>
+        </div>
+
+        <textarea
+          id="entry-content"
+          name="content"
+          class="input textarea"
+          rows="4"
+          placeholder="<%= mode === 'live' ? 'Add to the live thread…' : 'Write the minutes…' %>"
+          required
+        ></textarea>
+
+        <div class="composer-help subtle-text">
+          markdown supported: **bold**, *italic*, lists, links, blockquotes
+        </div>
+
         <div class="composer-controls">
-          <% if (mode === 'minutes') { %>
-            <label class="field-inline">
-              <span>day</span>
-              <input id="entry-date" name="entryDate" type="date" class="input" value="<%= todayDateInput %>" />
-            </label>
-          <% } %>
+          <label class="field-inline <%= mode === 'minutes' ? '' : 'hidden' %>" id="minutes-date-wrap">
+            <span>day</span>
+            <input
+              id="entry-date"
+              name="entryDate"
+              type="date"
+              class="input"
+              value="<%= todayDateInput %>"
+            />
+          </label>
+
+          <label class="field-inline hidden" id="live-edit-date-wrap">
+            <span>date</span>
+            <input
+              id="live-edit-date"
+              type="date"
+              class="input"
+              value="<%= todayDateInput %>"
+            />
+          </label>
+
           <div class="segmented-control compact" id="visibility-toggle">
             <button type="button" class="segment active" data-visibility="public">public</button>
             <button type="button" class="segment" data-visibility="private">private</button>
           </div>
-          <button type="submit" class="button primary">post</button>
+
+          <button type="submit" class="button primary" id="submit-btn">post</button>
         </div>
+
         <input type="hidden" id="visibility-input" name="visibility" value="public" />
+        <input type="hidden" id="editing-entry-id" value="" />
       </form>
+
       <p id="form-status" class="status"></p>
     </section>
   <% } %>
 </main>
+
 <script src="/js/topic.js"></script>
 </body>
 </html>

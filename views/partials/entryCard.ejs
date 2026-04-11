@@ -1,7 +1,37 @@
-<article class="entry-card">
-  <p class="entry-content"><%= entry.content %></p>
+<article
+  class="entry-card"
+  data-entry-id="<%= entry.id %>"
+  data-entry-mode="<%= entry.mode %>"
+  data-entry-visibility="<%= entry.visibility %>"
+  data-entry-date="<%= entry.entryDate ? new Date(entry.entryDate).toISOString().slice(0, 10) : '' %>"
+  data-entry-content="<%- JSON.stringify(entry.content) %>"
+>
+  <% if (isOwner) { %>
+    <div class="entry-actions">
+      <button
+        type="button"
+        class="entry-menu-trigger"
+        data-entry-menu-trigger
+        aria-label="Entry actions"
+      >⋯</button>
+      <div class="entry-menu hidden" data-entry-menu>
+        <button type="button" class="entry-menu-item" data-entry-edit>edit</button>
+        <button type="button" class="entry-menu-item danger" data-entry-delete>delete</button>
+      </div>
+    </div>
+  <% } %>
+
+  <div class="entry-body markdown-content"><%- entry.renderedContent %></div>
+
   <div class="entry-meta">
-    <span><%= entry.createdAtLabel %></span>
-    <span class="visibility-badge <%= entry.visibility %>"><%= entry.visibility %></span>
+    <% if (mode === 'live' && entry.createdAtLabel) { %>
+      <span><%= entry.createdAtLabel %></span>
+    <% } %>
+
+    <span class="visibility-badge"><%= entry.visibility %></span>
+
+    <% if (entry.isEdited) { %>
+      <span class="edited-badge">edited</span>
+    <% } %>
   </div>
 </article>

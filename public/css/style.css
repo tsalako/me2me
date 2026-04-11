@@ -259,3 +259,135 @@ h1 {
     width: 100%;
   }
 }
+
+.topic-shell {
+  height: calc(100vh - 84px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.feed {
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 120px;
+}
+
+.composer {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+}
+
+.entry-card {
+  position: relative;
+  padding: 16px;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 16px;
+  background: rgba(255,255,255,0.7);
+  margin-bottom: 12px;
+}
+
+.entry-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+
+.entry-menu-trigger {
+  border: none;
+  background: transparent;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.entry-menu {
+  position: absolute;
+  top: 28px;
+  right: 0;
+  min-width: 120px;
+  background: white;
+  border: 1px solid rgba(0,0,0,0.1);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.entry-menu.hidden,
+.hidden {
+  display: none !important;
+}
+
+.entry-menu-item {
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.entry-menu-item:hover {
+  background: rgba(0,0,0,0.05);
+}
+
+.entry-menu-item.danger {
+  color: #a11;
+}
+
+.entry-body {
+  margin-bottom: 12px;
+  padding-right: 36px;
+}
+
+.entry-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: rgba(0,0,0,0.6);
+}
+
+.visibility-badge,
+.edited-badge,
+.editing-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 2px 8px;
+  background: rgba(0,0,0,0.06);
+}
+
+.composer-editing-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.markdown-content p:first-child {
+  margin-top: 0;
+}
+
+.markdown-content p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-content ul,
+.markdown-content ol,
+.markdown-content blockquote,
+.markdown-content pre {
+  margin-top: 0.75em;
+  margin-bottom: 0.75em;
+}
+
+.button.ghost.small {
+  padding: 6px 10px;
+  font-size: 0.9rem;
+}

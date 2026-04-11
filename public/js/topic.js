@@ -1,119 +1,219 @@
-const topicSelect = document.getElementById("topic-select");
-const newTopicBtn = document.getElementById("new-topic-inline-btn");
-const form = document.getElementById("entry-form");
-const statusEl = document.getElementById("form-status");
-const visibilityToggle = document.getElementById("visibility-toggle");
-const visibilityInput = document.getElementById("visibility-input");
-const feed = document.getElementById("feed");
-const topicPage = document.querySelector("[data-topic-page]");
+(() => {
+  const page = document.querySelector("[data-topic-page]");
+  if (!page) return;
 
-if (topicSelect) {
-  topicSelect.addEventListener("change", () => {
-    window.location.href = topicSelect.value;
-  });
-}
+  const topicId = page.dataset.topicId;
+  const mode = page.dataset.mode;
+  const isOwner = page.dataset.isOwner === "true";
 
-if (newTopicBtn) {
-  newTopicBtn.addEventListener("click", async () => {
-    const title = window.prompt("New topic title:");
-    if (!title || !title.trim()) return;
+  const feed = document.getElementById("feed");
+  const topicSelect = document.getElementById("topic-select");
+  const form = document.getElementById("entry-form");
+  const textarea = document.getElementById("entry-content");
+  const formStatus = document.getElementById("form-status");
+  const visibilityInput = document.getElementById("visibility-input");
+  const visibilityToggle = document.getElementById("visibility-toggle");
+  const editingEntryIdInput = document.getElementById("editing-entry-id");
+  const editingRow = document.getElementById("editing-row");
+  const cancelEditBtn = document.getElementById("cancel-edit-btn");
+  const submitBtn = document.getElementById("submit-btn");
+  const minutesDateInput = document.getElementById("entry-date");
+  const minutesDateWrap = document.getElementById("minutes-date-wrap");
+  const liveEditDateInput = document.getElementById("live-edit-date");
+  const liveEditDateWrap = document.getElementById("live-edit-date-wrap");
 
-    const res = await fetch("/api/topics", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: title.trim() }),
+  if (topicSelect) {
+    topicSelect.addEventListener("change", () => {
+      window.location.href = topicSelect.value;
     });
-    const data = await res.json();
-    if (!res.ok) {
-      alert(data.error || "Failed to create topic.");
-      return;
-    }
-    window.location.href = data.path;
-  });
-}
+  }
 
-if (visibilityToggle) {
-  visibilityToggle.addEventListener("click", (event) => {
+  function setVisibility(value) {
+    visibilityInput.value = value;
+    visibilityToggle?.querySelectorAll("[data-visibility]").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.visibility === value);
+    });
+  }
+
+  visibilityToggle?.addEventListener("click", (event) => {
     const btn = event.target.closest("[data-visibility]");
     if (!btn) return;
-    visibilityInput.value = btn.dataset.visibility;
-    visibilityToggle.querySelectorAll(".segment").forEach((el) => el.classList.remove("active"));
-    btn.classList.add("active");
+    setVisibility(btn.dataset.visibility);
   });
-}
 
-function scrollFeedToBottom() {
-  if (!feed) return;
-  feed.scrollTop = feed.scrollHeight;
-}
+  function isEditing() {
+    return !!editingEntryIdInput?.value;
+  }
 
-if (topicPage?.dataset.mode === "live") {
-  window.addEventListener("load", scrollFeedToBottom);
-}
+  function resetComposer() {
+    editingEntryIdInput.value = "";
+    textarea.value = "";
+    submitBtn.textContent = "post";
+    editingRow?.classList.add("hidden");
+    formStatus.textContent = "";
+    setVisibility("public");
 
-function escapeHtml(s) {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
+    if (mode === "minutes" && minutesDateInput) {
+      // leave current date as-is
+    }
 
-if (form && topicPage?.dataset.isOwner === "true") {
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    statusEl.textContent = "Posting…";
+    liveEditDateWrap?.classList.add("hidden");
+    if (mode === "minutes") {
+      minutesDateWrap?.classList.remove("hidden");
+    }
+  }
 
-    const topicId = topicPage.dataset.topicId;
-    const mode = topicPage.dataset.mode;
-    const content = document.getElementById("entry-content").value.trim();
-    const entryDateInput = document.getElementById("entry-date");
+  function startEditFromCard(card) {
+    const id = card.dataset.entryId;
+    const content = JSON.parse(card.dataset.entryContent || "\"\"");
+    const visibility = card.dataset.entryVisibility || "public";
+    const entryDate = card.dataset.entryDate || "";
 
-    const payload = {
-      content,
-      mode,
-      visibility: visibilityInput.value,
-      entryDate: entryDateInput ? entryDateInput.value : null,
-    };
+    editingEntryIdInput.value = id;
+    textarea.value = content;
+    submitBtn.textContent = "save";
+    editingRow?.classList.remove("hidden");
+    setVisibility(visibility);
 
-    const res = await fetch(`/api/topics/${topicId}/entries`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json();
-
-    if (!res.ok) {
-      statusEl.textContent = data.error || "Failed to post.";
-      return;
+    if (mode === "minutes") {
+      minutesDateWrap?.classList.remove("hidden");
+      if (minutesDateInput) minutesDateInput.value = entryDate || minutesDateInput.value;
     }
 
     if (mode === "live") {
-      const entry = data.entry;
-      const wrapper = document.createElement("div");
-      wrapper.innerHTML = `
-        <article class="entry-card">
-          <p class="entry-content">${escapeHtml(entry.content)}</p>
-          <div class="entry-meta">
-            <span>${escapeHtml(entry.createdAtLabel)}</span>
-            <span class="visibility-badge ${escapeHtml(entry.visibility)}">${escapeHtml(entry.visibility)}</span>
-          </div>
-        </article>
-      `;
-      const empty = feed.querySelector(".empty-state");
-      if (empty) empty.remove();
-      feed.appendChild(wrapper.firstElementChild);
-      scrollFeedToBottom();
-    } else {
-      window.location.reload();
+      liveEditDateWrap?.classList.remove("hidden");
+      if (liveEditDateInput) liveEditDateInput.value = entryDate || "";
+    }
+
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+  }
+
+  cancelEditBtn?.addEventListener("click", () => {
+    resetComposer();
+  });
+
+  function closeAllMenus() {
+    document.querySelectorAll("[data-entry-menu]").forEach((menu) => {
+      menu.classList.add("hidden");
+    });
+  }
+
+  document.addEventListener("click", (event) => {
+    const trigger = event.target.closest("[data-entry-menu-trigger]");
+    const menu = event.target.closest("[data-entry-menu]");
+
+    if (trigger) {
+      const card = trigger.closest(".entry-card");
+      const targetMenu = card?.querySelector("[data-entry-menu]");
+      const wasHidden = targetMenu?.classList.contains("hidden");
+      closeAllMenus();
+      if (targetMenu && wasHidden) targetMenu.classList.remove("hidden");
       return;
     }
 
-    form.reset();
-    visibilityInput.value = "public";
-    visibilityToggle?.querySelectorAll(".segment").forEach((el) => el.classList.remove("active"));
-    visibilityToggle?.querySelector('[data-visibility="public"]')?.classList.add("active");
-    statusEl.textContent = "Posted.";
+    if (!menu) {
+      closeAllMenus();
+    }
   });
-}
+
+  feed?.addEventListener("click", async (event) => {
+    const editBtn = event.target.closest("[data-entry-edit]");
+    const deleteBtn = event.target.closest("[data-entry-delete]");
+
+    if (editBtn) {
+      const card = editBtn.closest(".entry-card");
+      closeAllMenus();
+      if (card) startEditFromCard(card);
+      return;
+    }
+
+    if (deleteBtn) {
+      const card = deleteBtn.closest(".entry-card");
+      const entryId = card?.dataset.entryId;
+      if (!entryId) return;
+
+      closeAllMenus();
+
+      const confirmed = window.confirm("Delete this entry?");
+      if (!confirmed) return;
+
+      try {
+        const res = await fetch(`/api/entries/${entryId}`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to delete entry.");
+
+        card?.remove();
+        formStatus.textContent = "Entry deleted.";
+        if (editingEntryIdInput.value === entryId) resetComposer();
+      } catch (err) {
+        formStatus.textContent = err.message || "Failed to delete entry.";
+      }
+    }
+  });
+
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    formStatus.textContent = "";
+
+    const content = textarea.value.trim();
+    if (!content) {
+      formStatus.textContent = "Post content is required.";
+      return;
+    }
+
+    const editingId = editingEntryIdInput.value;
+    const isUpdate = !!editingId;
+
+    const payload = {
+      content,
+      visibility: visibilityInput.value,
+      mode,
+    };
+
+    if (mode === "minutes" && minutesDateInput?.value) {
+      payload.entryDate = minutesDateInput.value;
+    }
+
+    if (mode === "live" && isUpdate && liveEditDateInput?.value) {
+      payload.entryDate = liveEditDateInput.value;
+    }
+
+    try {
+      const res = await fetch(
+        isUpdate ? `/api/entries/${editingId}` : `/api/topics/${topicId}/entries`,
+        {
+          method: isUpdate ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Request failed.");
+
+      // simplest reliable refresh for now
+      window.location.reload();
+    } catch (err) {
+      formStatus.textContent = err.message || "Something went wrong.";
+    }
+  });
+
+  function scrollFeedToBottom() {
+    if (!feed) return;
+    requestAnimationFrame(() => {
+      feed.scrollTop = feed.scrollHeight;
+    });
+  }
+
+  if (mode === "live") {
+    scrollFeedToBottom();
+    window.addEventListener("load", scrollFeedToBottom);
+  }
+
+  setVisibility("public");
+})();
