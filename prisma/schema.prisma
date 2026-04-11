@@ -29,6 +29,7 @@ model User {
 
   topics     Topic[]
   entries    Entry[]  @relation("EntryAuthor")
+  tags       Tag[]
 }
 
 model Topic {
@@ -63,7 +64,34 @@ model Entry {
 
   topic             Topic       @relation(fields: [topicId], references: [id], onDelete: Cascade)
   createdBy         User        @relation("EntryAuthor", fields: [createdById], references: [id], onDelete: Cascade)
+  entryTags         EntryTag[]
 
   @@index([topicId, mode, createdAt])
   @@index([topicId, mode, entryDate])
+}
+
+model Tag {
+  id        String     @id @default(uuid())
+  name      String
+  slug      String
+  ownerId   String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  owner     User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  entryTags EntryTag[]
+
+  @@unique([ownerId, slug])
+  @@index([ownerId, name])
+}
+
+model EntryTag {
+  entryId String
+  tagId   String
+
+  entry   Entry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  tag     Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([entryId, tagId])
+  @@index([tagId])
 }

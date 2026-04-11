@@ -4,10 +4,10 @@
 
   const topicId = page.dataset.topicId;
   const mode = page.dataset.mode;
-  const isOwner = page.dataset.isOwner === "true";
 
   const feed = document.getElementById("feed");
   const topicSelect = document.getElementById("topic-select");
+  const newTopicInlineBtn = document.getElementById("new-topic-inline-btn");
   const form = document.getElementById("entry-form");
   const textarea = document.getElementById("entry-content");
   const formStatus = document.getElementById("form-status");
@@ -21,12 +21,44 @@
   const minutesDateWrap = document.getElementById("minutes-date-wrap");
   const liveEditDateInput = document.getElementById("live-edit-date");
   const liveEditDateWrap = document.getElementById("live-edit-date-wrap");
+  const tagInput = document.getElementById("tag-input");
+  const tagPillList = document.getElementById("tag-pill-list");
+  const tagsInput = document.getElementById("tags-input");
+
+  let currentTags = [];
 
   if (topicSelect) {
     topicSelect.addEventListener("change", () => {
       window.location.href = topicSelect.value;
     });
   }
+
+  newTopicInlineBtn?.addEventListener("click", async () => {
+    const title = window.prompt("New topic title:");
+    if (!title) return;
+
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) return;
+
+    try {
+      const res = await fetch("/api/topics", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ title: trimmedTitle }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to create topic.");
+      }
+
+      window.location.href = data.path;
+    } catch (err) {
+      formStatus.textContent = err.message || "Failed to create topic.";
+    }
+  });
 
   function setVisibility(value) {
     visibilityInput.value = value;
@@ -41,9 +73,69 @@
     setVisibility(btn.dataset.visibility);
   });
 
-  function isEditing() {
-    return !!editingEntryIdInput?.value;
+  function syncTagsInput() {
+    if (tagsInput) {
+      tagsInput.value = currentTags.join(", ");
+    }
   }
+
+  function renderTagPills() {
+    if (!tagPillList) return;
+
+    tagPillList.innerHTML = "";
+
+    currentTags.forEach((tag) => {
+      const pill = document.createElement("button");
+      pill.type = "button";
+      pill.className = "tag-pill removable";
+      pill.textContent = tag;
+
+      const remove = document.createElement("span");
+      remove.className = "tag-pill-remove";
+      remove.textContent = "×";
+      pill.appendChild(remove);
+
+      pill.addEventListener("click", () => {
+        currentTags = currentTags.filter((t) => t !== tag);
+        renderTagPills();
+        syncTagsInput();
+      });
+
+      tagPillList.appendChild(pill);
+    });
+  }
+
+  function addTagsFromInput(rawValue) {
+    const parts = String(rawValue || "")
+      .split(",")
+      .map((t) => t.trim().toLowerCase())
+      .filter(Boolean);
+
+    for (const part of parts) {
+      if (!currentTags.includes(part)) {
+        currentTags.push(part);
+      }
+    }
+
+    currentTags = currentTags.slice(0, 5);
+    renderTagPills();
+    syncTagsInput();
+  }
+
+  tagInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === ",") {
+      event.preventDefault();
+      addTagsFromInput(tagInput.value);
+      tagInput.value = "";
+    }
+  });
+
+  tagInput?.addEventListener("blur", () => {
+    if (tagInput.value.trim()) {
+      addTagsFromInput(tagInput.value);
+      tagInput.value = "";
+    }
+  });
 
   function resetComposer() {
     editingEntryIdInput.value = "";
@@ -53,9 +145,10 @@
     formStatus.textContent = "";
     setVisibility("public");
 
-    if (mode === "minutes" && minutesDateInput) {
-      // leave current date as-is
-    }
+    currentTags = [];
+    renderTagPills();
+    syncTagsInput();
+    if (tagInput) tagInput.value = "";
 
     liveEditDateWrap?.classList.add("hidden");
     if (mode === "minutes") {
@@ -69,12 +162,17 @@
     const content = sourceEl ? JSON.parse(sourceEl.textContent || "\"\"") : "";
     const visibility = card.dataset.entryVisibility || "public";
     const entryDate = card.dataset.entryDate || "";
+    const tagData = card.dataset.entryTags ? JSON.parse(card.dataset.entryTags) : [];
 
     editingEntryIdInput.value = id;
     textarea.value = content;
     submitBtn.textContent = "save";
     editingRow?.classList.remove("hidden");
     setVisibility(visibility);
+
+    currentTags = tagData.map((tag) => tag.name);
+    renderTagPills();
+    syncTagsInput();
 
     if (mode === "minutes") {
       minutesDateWrap?.classList.remove("hidden");
@@ -174,6 +272,7 @@
       content,
       visibility: visibilityInput.value,
       mode,
+      tags: currentTags,
     };
 
     if (mode === "minutes" && minutesDateInput?.value) {
@@ -197,7 +296,6 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Request failed.");
 
-      // simplest reliable refresh for now
       window.location.reload();
     } catch (err) {
       formStatus.textContent = err.message || "Something went wrong.";
@@ -217,4 +315,6 @@
   }
 
   setVisibility("public");
+  renderTagPills();
+  syncTagsInput();
 })();

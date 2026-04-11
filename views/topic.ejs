@@ -34,6 +34,22 @@
     <% if (isOwner) { %>
       <h1 class="topic-title-heading owner-title"><%= topic.title %></h1>
     <% } %>
+
+    <% if (availableTags && availableTags.length) { %>
+      <div class="tag-filter-row card">
+        <a
+          class="tag-pill filter-pill <%= !activeTagSlug ? 'active' : '' %>"
+          href="<%= topicPath(topic, mode) %>"
+        >all</a>
+
+        <% availableTags.forEach((tag) => { %>
+          <a
+            class="tag-pill filter-pill <%= activeTagSlug === tag.slug ? 'active' : '' %>"
+            href="<%= `${topicPath(topic, mode)}&tag=${encodeURIComponent(tag.slug)}` %>"
+          ><%= tag.name %></a>
+        <% }) %>
+        </div>
+    <% } %>
   </section>
 
   <section class="feed card" id="feed">
@@ -80,6 +96,22 @@
 
         <div class="composer-help subtle-text">
           markdown supported: **bold**, *italic*, lists, links, blockquotes
+        </div>
+
+        <div class="tag-editor">
+          <label class="field-inline tag-editor-field">
+            <span>tags</span>
+            <input
+              id="tag-input"
+              type="text"
+              class="input"
+              placeholder="add tags, comma separated"
+              autocomplete="off"
+            />
+          </label>
+
+          <div id="tag-pill-list" class="tag-pill-list"></div>
+          <input type="hidden" id="tags-input" name="tags" value="" />
         </div>
 
         <div class="composer-controls">

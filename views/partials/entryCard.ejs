@@ -4,6 +4,7 @@
   data-entry-mode="<%= entry.mode %>"
   data-entry-visibility="<%= entry.visibility %>"
   data-entry-date="<%= entry.entryDate ? new Date(entry.entryDate).toISOString().slice(0, 10) : '' %>"
+  data-entry-tags="<%- JSON.stringify(entry.tags || []) %>"
 >
   <script type="application/json" class="entry-source"><%- JSON.stringify(entry.content) %></script>
 
@@ -23,6 +24,14 @@
   <% } %>
 
   <div class="entry-body markdown-content"><%- entry.renderedContent %></div>
+
+  <% if (entry.tags && entry.tags.length) { %>
+    <div class="entry-tags">
+      <% entry.tags.forEach((tag) => { %>
+        <span class="tag-pill"><%= tag.name %></span>
+      <% }) %>
+    </div>
+  <% } %>
 
   <div class="entry-meta">
     <% if (mode === 'live' && entry.createdAtLabel) { %>

@@ -21,6 +21,11 @@ function decorateEntry(entry, mode) {
     renderedContent: renderMarkdown(content),
     createdAtLabel: mode === "live" ? formatDateTime(entry.createdAt) : null,
     isEdited,
+    tags: (entry.entryTags || []).map((et) => ({
+      id: et.tag.id,
+      name: et.tag.name,
+      slug: et.tag.slug,
+    })),
   };
 }
 
@@ -84,6 +89,7 @@ router.get("/t/:idAndSlug", async (req, res, next) => {
     }
 
     const mode = req.query.mode === "minutes" ? "minutes" : "live";
+    const activeTagSlug = String(req.query.tag || "").trim().toLowerCase();
 
     const topic = await prisma.topic.findUnique({
       where: { id: topicId },
@@ -98,14 +104,52 @@ router.get("/t/:idAndSlug", async (req, res, next) => {
       topicId: topic.id,
       mode,
       ...(isOwner ? {} : { visibility: "public" }),
+      ...(activeTagSlug
+        ? {
+            entryTags: {
+              some: {
+                tag: {
+                  slug: activeTagSlug,
+                  ownerId: topic.ownerId,
+                },
+              },
+            },
+          }
+        : {}),
     };
 
     const dbEntries = await prisma.entry.findMany({
       where,
+      include: {
+        entryTags: {
+          include: {
+            tag: true,
+          },
+          orderBy: {
+            tag: { name: "asc" },
+          },
+        },
+      },
       orderBy:
         mode === "live"
           ? [{ createdAt: "asc" }]
           : [{ entryDate: "asc" }, { createdAt: "asc" }],
+    });
+
+    const availableTags = await prisma.tag.findMany({
+      where: {
+        ownerId: topic.ownerId,
+        entryTags: {
+          some: {
+            entry: {
+              topicId: topic.id,
+              mode,
+              ...(isOwner ? {} : { visibility: "public" }),
+            },
+          },
+        },
+      },
+      orderBy: { name: "asc" },
     });
 
     const canonicalSlug = slugify(topic.title);
@@ -118,8 +162,12 @@ router.get("/t/:idAndSlug", async (req, res, next) => {
     }
 
     const canonicalPath = topicPath(topic, mode);
-    if (`/t/${req.params.idAndSlug}?mode=${mode}` !== canonicalPath) {
-      return res.redirect(canonicalPath);
+    const expectedCurrentPath = activeTagSlug
+      ? `${canonicalPath}&tag=${encodeURIComponent(activeTagSlug)}`
+      : canonicalPath;
+
+    if (`${req.path}${req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : ""}` !== expectedCurrentPath) {
+      return res.redirect(expectedCurrentPath);
     }
 
     const ownerTopics = isOwner
@@ -144,6 +192,8 @@ router.get("/t/:idAndSlug", async (req, res, next) => {
       ownerTopics,
       liveEntries,
       minuteGroups,
+      availableTags,
+      activeTagSlug,
       topicPath,
       todayDateInput: new Intl.DateTimeFormat("en-CA", {
         timeZone: process.env.APP_TIMEZONE || "America/Los_Angeles",

@@ -3,6 +3,7 @@ import { prisma } from "../utils/prisma.js";
 import { formatDateTime } from "../utils/time.js";
 import { encryptContent, decryptContent } from "../utils/crypto.js";
 import { renderMarkdown } from "../utils/markdown.js";
+import { parseTagsInput } from "../utils/tags.js";
 
 const router = express.Router();
 
@@ -23,7 +24,39 @@ function serializeEntry(entry, mode) {
     renderedContent: renderMarkdown(content),
     createdAtLabel: mode === "live" ? formatDateTime(entry.createdAt) : null,
     isEdited: isEdited(entry),
+    tags: (entry.entryTags || []).map((et) => ({
+      id: et.tag.id,
+      name: et.tag.name,
+      slug: et.tag.slug,
+    })),
   };
+}
+
+async function upsertTagsForOwner(ownerId, tags) {
+  const results = [];
+
+  for (const tag of tags) {
+    const record = await prisma.tag.upsert({
+      where: {
+        ownerId_slug: {
+          ownerId,
+          slug: tag.slug,
+        },
+      },
+      update: {
+        name: tag.name,
+      },
+      create: {
+        ownerId,
+        name: tag.name,
+        slug: tag.slug,
+      },
+    });
+
+    results.push(record);
+  }
+
+  return results;
 }
 
 router.post("/api/topics/:topicId/entries", async (req, res, next) => {
@@ -47,6 +80,7 @@ router.post("/api/topics/:topicId/entries", async (req, res, next) => {
     const content = String(req.body.content || "").trim();
     const mode = req.body.mode === "minutes" ? "minutes" : "live";
     const visibility = req.body.visibility === "private" ? "private" : "public";
+    const tags = parseTagsInput(req.body.tags);
 
     let entryDate = null;
     if (mode === "minutes" && req.body.entryDate) {
@@ -58,6 +92,7 @@ router.post("/api/topics/:topicId/entries", async (req, res, next) => {
     }
 
     const encrypted = encryptContent(content);
+    const tagRecords = await upsertTagsForOwner(req.currentUser.id, tags);
 
     const entry = await prisma.entry.create({
       data: {
@@ -67,6 +102,18 @@ router.post("/api/topics/:topicId/entries", async (req, res, next) => {
         visibility,
         entryDate,
         ...encrypted,
+        entryTags: {
+          create: tagRecords.map((tag) => ({
+            tagId: tag.id,
+          })),
+        },
+      },
+      include: {
+        entryTags: {
+          include: {
+            tag: true,
+          },
+        },
       },
     });
 
@@ -105,12 +152,14 @@ router.patch("/api/entries/:entryId", async (req, res, next) => {
 
     const content = String(req.body.content || "").trim();
     const visibility = req.body.visibility === "private" ? "private" : "public";
+    const tags = parseTagsInput(req.body.tags);
 
     if (!content) {
       return res.status(400).json({ error: "Post content is required." });
     }
 
     const encrypted = encryptContent(content);
+    const tagRecords = await upsertTagsForOwner(req.currentUser.id, tags);
 
     const data = {
       visibility,
@@ -139,7 +188,22 @@ router.patch("/api/entries/:entryId", async (req, res, next) => {
 
     const updated = await prisma.entry.update({
       where: { id: existing.id },
-      data,
+      data: {
+        ...data,
+        entryTags: {
+          deleteMany: {},
+          create: tagRecords.map((tag) => ({
+            tagId: tag.id,
+          })),
+        },
+      },
+      include: {
+        entryTags: {
+          include: {
+            tag: true,
+          },
+        },
+      },
     });
 
     await prisma.topic.update({
