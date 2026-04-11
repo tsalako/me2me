@@ -65,7 +65,8 @@
 
   function startEditFromCard(card) {
     const id = card.dataset.entryId;
-    const content = JSON.parse(card.dataset.entryContent || "\"\"");
+    const sourceEl = card.querySelector(".entry-source");
+    const content = sourceEl ? JSON.parse(sourceEl.textContent || "\"\"") : "";
     const visibility = card.dataset.entryVisibility || "public";
     const entryDate = card.dataset.entryDate || "";
 

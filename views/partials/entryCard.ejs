@@ -4,8 +4,9 @@
   data-entry-mode="<%= entry.mode %>"
   data-entry-visibility="<%= entry.visibility %>"
   data-entry-date="<%= entry.entryDate ? new Date(entry.entryDate).toISOString().slice(0, 10) : '' %>"
-  data-entry-content="<%- JSON.stringify(entry.content) %>"
 >
+  <script type="application/json" class="entry-source"><%- JSON.stringify(entry.content) %></script>
+
   <% if (isOwner) { %>
     <div class="entry-actions">
       <button
